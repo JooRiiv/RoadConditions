@@ -1,12 +1,12 @@
 package com.example.roadconditions
 
 import android.Manifest
-import android.os.Build
+import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.google.android.gms.maps.CameraUpdateFactory
@@ -19,7 +19,6 @@ import com.google.android.gms.maps.model.MarkerOptions
 class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var googleMap: GoogleMap
 
-    @RequiresApi(Build.VERSION_CODES.Q)
     fun requestPermissions() {
         val locationPermissionRequest = registerForActivityResult(
             ActivityResultContracts.RequestMultiplePermissions()
@@ -29,12 +28,11 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                     // Background location access granted.
 
                 }
-                permissions.getOrDefault(Manifest.permission.ACCESS_FINE_LOCATION, false) -> {
-                    // Precise location access granted.
-                }
+                permissions.getOrDefault(Manifest.permission.ACCESS_FINE_LOCATION, false) ||
 
                 permissions.getOrDefault(Manifest.permission.ACCESS_COARSE_LOCATION, false) -> {
                     // Only approximate location access granted.
+                    enableMyLocation()
                 }
 
                 else -> {
@@ -45,15 +43,23 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         // Check if access has alraedy been granted previously.
         locationPermissionRequest.launch(
-           arrayOf(
-               Manifest.permission.ACCESS_FINE_LOCATION,
-               Manifest.permission.ACCESS_COARSE_LOCATION,
-               Manifest.permission.ACCESS_BACKGROUND_LOCATION
-          )
-)
+            arrayOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            )
+        )
     }
 
-    @RequiresApi(Build.VERSION_CODES.Q)
+    private fun enableMyLocation() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==
+            PackageManager.PERMISSION_GRANTED ||
+            ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) ==
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            googleMap.isMyLocationEnabled = true
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -69,21 +75,19 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         mapFragment.getMapAsync(this)
         requestPermissions()
 
-
     }
 
     override fun onMapReady(map: GoogleMap) {
         googleMap = map
         addCustomMarker()
-        LocationTracker()
     }
 
 
     private fun addCustomMarker() {
         // Mock data
         val locations = listOf(LatLng(61.462087, 23.843748),
-        LatLng(61.465286, 23.812305),
-        LatLng(61.471189, 23.861733)
+            LatLng(61.465286, 23.812305),
+            LatLng(61.471189, 23.861733)
         )
         for (location in locations) {
             val markerOptions = MarkerOptions()
