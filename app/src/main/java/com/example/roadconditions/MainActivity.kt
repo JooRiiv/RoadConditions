@@ -31,7 +31,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 permissions.getOrDefault(Manifest.permission.ACCESS_FINE_LOCATION, false) ||
 
                 permissions.getOrDefault(Manifest.permission.ACCESS_COARSE_LOCATION, false) -> {
-                    // Only approximate location access granted.
+                    // Approximate or fine location access granted.
                     enableMyLocation()
                 }
 
