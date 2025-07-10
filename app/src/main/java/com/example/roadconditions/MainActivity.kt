@@ -66,24 +66,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         )
     }
 
-    /*private fun getUserLocation() {
-        if (ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_COARSE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED
-        ) {
-            fusedLocationClient.lastLocation
-                .addOnSuccessListener(
-                    this
-                ) { location: Location? ->
-                    if (location != null) {
-                        val userLatLng = LatLng(location.latitude, location.longitude)
-                        googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(userLatLng, 16f))
-                    }
-                }
-        }
-
-    }*/
     private fun enableMyLocation() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==
             PackageManager.PERMISSION_GRANTED ||
