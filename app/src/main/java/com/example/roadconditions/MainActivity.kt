@@ -30,10 +30,35 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var googleMap: GoogleMap
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var locationCallback: LocationCallback
+    private lateinit var toggle: ToggleButton
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        setContentView(R.layout.activity_main)
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+            insets
+
+        }
 
 
-    fun requestPermissions() {
-        val locationPermissionRequest = registerForActivityResult(
+        val mapFragment = supportFragmentManager
+            .findFragmentById(R.id.map) as SupportMapFragment
+        mapFragment.getMapAsync(this)
+        toggle = findViewById(R.id.trackingButton)
+        requestPermissions()
+
+    }
+
+    override fun onMapReady(map: GoogleMap) {
+        googleMap = map
+        addCustomMarker()
+    }
+
+
+    private var locationPermissionRequest = registerForActivityResult(
             ActivityResultContracts.RequestMultiplePermissions()
         ) { permissions ->
             when {
@@ -45,8 +70,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
                         permissions.getOrDefault(Manifest.permission.ACCESS_COARSE_LOCATION, false) -> {
                     // Approximate or fine location access granted.
+                    setupLocationTracking()
                     enableMyLocation()
-                    //getUserLocation()
 
                 }
 
@@ -57,13 +82,37 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             }
         }
 
-        // Check if access has alraedy been granted previously.
+    // Check if access has already been granted previously.
+    private fun requestPermissions () {
         locationPermissionRequest.launch(
             arrayOf(
                 Manifest.permission.ACCESS_FINE_LOCATION,
                 Manifest.permission.ACCESS_COARSE_LOCATION
             )
         )
+    }
+
+
+    private fun setupLocationTracking() {
+        if (ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
+            toggle.setOnCheckedChangeListener { _, isChecked ->
+                if (isChecked) startLocationUpdates() else stopLocationUpdates()
+            }
+            fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+            locationCallback = object : LocationCallback() {
+                override fun onLocationResult(locationResult: LocationResult) {
+                    super.onLocationResult(locationResult)
+                    for (location: Location in locationResult.locations) {
+                        val userLatLng = LatLng(location.latitude, location.longitude)
+                        googleMap.moveCamera(CameraUpdateFactory.newLatLng(userLatLng))
+                    }
+                }
+            }
+        }
     }
 
     private fun enableMyLocation() {
@@ -76,43 +125,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             PackageManager.PERMISSION_GRANTED
         ) {
             googleMap.isMyLocationEnabled = true
-        }
-    }
-
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        setContentView(R.layout.activity_main)
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
-            insets
-
-        }
-        val mapFragment = supportFragmentManager
-            .findFragmentById(R.id.map) as SupportMapFragment
-        mapFragment.getMapAsync(this)
-        requestPermissions()
-        if (ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_COARSE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED
-        ) {
-            val toggle : ToggleButton = findViewById(R.id.trackingButton)
-            toggle.setOnCheckedChangeListener { _, isChecked ->
-                if (isChecked) startLocationUpdates() else onPause()
-            }
-            fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
-            locationCallback = object : LocationCallback() {
-                override fun onLocationResult(locationResult: LocationResult) {
-                    super.onLocationResult(locationResult)
-                    for (location: Location in locationResult.locations) {
-                        val userLatLng = LatLng(location.latitude, location.longitude)
-                        googleMap.moveCamera(CameraUpdateFactory.newLatLng(userLatLng))
-                    }
-                }
-            }
         }
     }
 
@@ -131,16 +143,11 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         )
     }
 
-    override fun onPause() {
-        super.onPause()
-        fusedLocationClient.removeLocationUpdates(locationCallback)
+    private fun stopLocationUpdates() {
+        if (::fusedLocationClient.isInitialized && ::locationCallback.isInitialized) {
+            fusedLocationClient.removeLocationUpdates(locationCallback)
+        }
     }
-
-    override fun onMapReady(map: GoogleMap) {
-        googleMap = map
-        addCustomMarker()
-    }
-
 
     private fun addCustomMarker() {
         // Mock data
