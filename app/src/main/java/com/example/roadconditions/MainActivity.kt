@@ -56,6 +56,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         googleMap = map
         addCustomMarker()
         map.getUiSettings().isZoomControlsEnabled = true
+        map.getUiSettings().isMapToolbarEnabled = false
     }
 
 
