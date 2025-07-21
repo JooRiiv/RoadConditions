@@ -55,6 +55,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     override fun onMapReady(map: GoogleMap) {
         googleMap = map
         addCustomMarker()
+        map.getUiSettings().isZoomControlsEnabled = true
     }
 
 
