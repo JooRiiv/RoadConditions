@@ -2,6 +2,9 @@
     <string name="app_name">Road Conditions</string>
     <string name="togglebutton">ToggleButton</string>
     <string name="tracking">Tracking</string>
-    <string name="signal_strength">Signal Strength</string>
-    <string name="strong_weak_none">Strong/Weak/None</string>
+    <string name="signalHeader">Signal Strength:</string>
+    <string name="signalStrength">Strong/Weak/None</string>
+    <string name="strong">Strong</string>
+    <string name="weak">Weak</string>
+    <string name="none">None</string>
 </resources>

@@ -31,7 +31,7 @@
         app:layout_constraintVertical_bias="1.0" />
 
     <TextView
-        android:id="@+id/textView"
+        android:id="@+id/trackingHeader"
         android:layout_width="88dp"
         android:layout_height="27dp"
         android:layout_marginTop="8dp"
@@ -45,25 +45,26 @@
         app:layout_constraintVertical_bias="0.21" />
 
     <TextView
-        android:id="@+id/textView2"
+        android:id="@+id/signalHeader"
         android:layout_width="120dp"
         android:layout_height="23dp"
         android:layout_marginStart="56dp"
         android:layout_marginTop="8dp"
-        android:text="@string/signal_strength"
+        android:text="@string/signalHeader"
         android:textAlignment="center"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
     <TextView
-        android:id="@+id/textView3"
-        android:layout_width="wrap_content"
+        android:id="@+id/signalStrength"
+        android:layout_width="120dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="56dp"
         android:layout_marginBottom="8dp"
-        android:text="@string/strong_weak_none"
-        android:textAlignment="center"
+        android:gravity="center"
+        android:text="@string/signalStrength"
         app:layout_constraintBottom_toTopOf="@+id/map"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/textView2" />
+        app:layout_constraintTop_toBottomOf="@+id/signalHeader" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>

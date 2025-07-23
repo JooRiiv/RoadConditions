@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.location.Location
 import android.os.Bundle
+import android.widget.TextView
 import android.widget.Toast
 import android.widget.ToggleButton
 import androidx.activity.enableEdgeToEdge
@@ -31,6 +32,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var locationCallback: LocationCallback
     private lateinit var toggle: ToggleButton
+    private lateinit var signal: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -48,6 +50,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             .findFragmentById(R.id.map) as SupportMapFragment
         mapFragment.getMapAsync(this)
         toggle = findViewById(R.id.trackingButton)
+        signal = findViewById(R.id.signalStrength)
+        signal.setText(R.string.none)
         requestPermissions()
 
     }
@@ -110,7 +114,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                     super.onLocationResult(locationResult)
                     for (location: Location in locationResult.locations) {
                         val userLatLng = LatLng(location.latitude, location.longitude)
-                        googleMap.moveCamera(CameraUpdateFactory.newLatLng(userLatLng))
+                        googleMap.animateCamera(CameraUpdateFactory.newLatLng(userLatLng))
                     }
                 }
             }
@@ -132,6 +136,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
     private fun startLocationUpdates() {
+
         val locationRequest = LocationRequest.create().apply {
             interval = 1000
             fastestInterval = 500
@@ -143,11 +148,23 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             locationCallback,
             mainLooper
         )
+
+        if (ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
+            signal.setText(R.string.strong)
+
+        } else
+            signal.setText(R.string.weak)
+
     }
 
     private fun stopLocationUpdates() {
         if (::fusedLocationClient.isInitialized && ::locationCallback.isInitialized) {
             fusedLocationClient.removeLocationUpdates(locationCallback)
+            signal.setText(R.string.none)
         }
     }
 
