@@ -2,6 +2,10 @@ package com.example.roadconditions
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.location.Location
 import android.os.Bundle
 import android.widget.TextView
@@ -27,12 +31,14 @@ import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
 
-class MainActivity : AppCompatActivity(), OnMapReadyCallback {
+class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListener {
     private lateinit var googleMap: GoogleMap
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var locationCallback: LocationCallback
     private lateinit var toggle: ToggleButton
     private lateinit var signal: TextView
+    private lateinit var sensorManager: SensorManager
+    private var accelerometer: Sensor? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -45,10 +51,11 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         }
 
-
         val mapFragment = supportFragmentManager
             .findFragmentById(R.id.map) as SupportMapFragment
         mapFragment.getMapAsync(this)
+        sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
+        accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
         toggle = findViewById(R.id.trackingButton)
         signal = findViewById(R.id.signalStrength)
         signal.setText(R.string.none)
@@ -143,6 +150,10 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             priority = LocationRequest.PRIORITY_HIGH_ACCURACY
         }
 
+        accelerometer?.also { sensor ->
+            sensorManager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_UI)
+        }
+
         fusedLocationClient.requestLocationUpdates(
             locationRequest,
             locationCallback,
@@ -161,11 +172,41 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     }
 
+    override fun onResume() {
+        super.onResume()
+    }
+
     private fun stopLocationUpdates() {
         if (::fusedLocationClient.isInitialized && ::locationCallback.isInitialized) {
             fusedLocationClient.removeLocationUpdates(locationCallback)
             signal.setText(R.string.none)
+            sensorManager.unregisterListener(this)
         }
+    }
+
+    private var lastBumpTime = 0L
+    private val bumpCooldown = 2000L
+
+    override fun onSensorChanged(event: SensorEvent?) {
+        event?.let {
+            val z = it.values[2]
+
+            val verticalAcceleration = Math.abs(z - SensorManager.GRAVITY_EARTH)
+
+            val bumpThreshold = 30.0f
+
+            val currentTime = System.currentTimeMillis()
+            if (verticalAcceleration > bumpThreshold && currentTime - lastBumpTime > bumpCooldown) {
+                lastBumpTime = currentTime
+                onBumpDetected()
+            }
+        }
+    }
+
+    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+
+    private fun onBumpDetected() {
+        Toast.makeText(this, "Bump detected", Toast.LENGTH_SHORT).show()
     }
 
     private fun addCustomMarker() {
@@ -184,5 +225,4 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         val tampere = LatLng(61.497234,23.759126)
         googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(tampere, 12f))
     }
-
 }
