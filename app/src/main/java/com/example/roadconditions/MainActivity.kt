@@ -257,7 +257,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
 
             val verticalAcceleration = Math.abs(z - SensorManager.GRAVITY_EARTH)
 
-            val bumpThreshold = 30.0f
+            val bumpThreshold = 15.0f
 
             val currentTime = System.currentTimeMillis()
             if (verticalAcceleration > bumpThreshold && currentTime - lastBumpTime > bumpCooldown) {
