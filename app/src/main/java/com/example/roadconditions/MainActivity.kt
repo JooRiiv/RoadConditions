@@ -81,57 +81,53 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
     }
 
 
-    private var locationPermissionRequest = registerForActivityResult(
+    private var foregroundPermissionRequest = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
-        when {
-            permissions.getOrDefault(Manifest.permission.ACCESS_BACKGROUND_LOCATION, false) -> {
-                // Background location access granted.
-                setupActivityRecognition()
-                setupLocationTracking()
-                enableMyLocation()
+        val fineLocation = permissions[Manifest.permission.ACCESS_FINE_LOCATION] ?: false
+        val coarseLocation = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] ?: false
+        val activityRecognition = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+            permissions[Manifest.permission.ACTIVITY_RECOGNITION] ?: false else true
 
+        if ((fineLocation || coarseLocation) && activityRecognition) {
+            // Foreground permissions granted — now ask for background location if needed
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+                ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                requestBackgroundLocationPermission()
+            } else {
+                startAppFunctions()
             }
-
-            permissions.getOrDefault(Manifest.permission.ACCESS_FINE_LOCATION, false) ||
-
-                    permissions.getOrDefault(Manifest.permission.ACCESS_COARSE_LOCATION, false)  ||
-                    (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
-                        permissions.getOrDefault(Manifest.permission.ACTIVITY_RECOGNITION, false))-> {
-                // Approximate or fine location, and activity access granted.
-                setupActivityRecognition()
-                setupLocationTracking()
-                enableMyLocation()
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
-                    !permissions.getOrDefault(Manifest.permission.ACCESS_BACKGROUND_LOCATION, false)
-                ) {
-                    showBackgroundLocationDialog()
-                }
-            }
-
-            else -> {
-                // No location access granted.
-                Toast.makeText(this, "Tracking not possible due to insufficient permissions", Toast.LENGTH_SHORT).show()
-            }
+        } else {
+            Toast.makeText(this, "Foreground location or activity recognition permission denied", Toast.LENGTH_SHORT).show()
         }
     }
 
-    // Check if access has already been granted previously.
+    private var backgroundPermissionRequest = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            startAppFunctions()
+        } else {
+            startAppFunctions()
+            showBackgroundLocationDialog()
+        }
+    }
+
     private fun requestPermissions() {
         val permissionsToRequest = mutableListOf(
             Manifest.permission.ACCESS_FINE_LOCATION,
             Manifest.permission.ACCESS_COARSE_LOCATION
         )
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             permissionsToRequest.add(Manifest.permission.ACTIVITY_RECOGNITION)
-            permissionsToRequest.add(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
-
         }
+        foregroundPermissionRequest.launch(permissionsToRequest.toTypedArray())
+    }
 
-        locationPermissionRequest.launch(permissionsToRequest.toTypedArray())
-
-
+    private fun requestBackgroundLocationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            backgroundPermissionRequest.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+        }
     }
 
     private fun showBackgroundLocationDialog() {
@@ -146,6 +142,12 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
             }
             .setNegativeButton("Cancel", null)
             .show()
+    }
+
+    private fun startAppFunctions() {
+        setupActivityRecognition()
+        setupLocationTracking()
+        enableMyLocation()
     }
 
     private fun setupActivityRecognition() {
