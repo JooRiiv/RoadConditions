@@ -1,10 +1,12 @@
 <resources>
     <string name="app_name">Road Conditions</string>
-    <string name="togglebutton">ToggleButton</string>
     <string name="tracking">Tracking</string>
     <string name="signalHeader">Signal Strength:</string>
     <string name="signalStrength">Strong/Weak/None</string>
     <string name="strong">Strong</string>
     <string name="weak">Weak</string>
     <string name="none">None</string>
+    <string name="TrackingInfo">On/Off</string>
+    <string name="On">On></string>
+    <string name="Off">Off</string>
 </resources>

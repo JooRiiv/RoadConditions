@@ -1,16 +1,21 @@
 package com.example.roadconditions
 
 import android.Manifest
+import android.app.PendingIntent
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.location.Location
+import android.os.Build
 import android.os.Bundle
 import android.widget.TextView
 import android.widget.Toast
-import android.widget.ToggleButton
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresPermission
@@ -19,6 +24,8 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
+import com.google.android.gms.location.ActivityRecognition
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
@@ -35,8 +42,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
     private lateinit var googleMap: GoogleMap
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var locationCallback: LocationCallback
-    private lateinit var toggle: ToggleButton
     private lateinit var signal: TextView
+    private lateinit var trackingInfo: TextView
     private lateinit var sensorManager: SensorManager
     private var accelerometer: Sensor? = null
 
@@ -56,9 +63,10 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
         mapFragment.getMapAsync(this)
         sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
         accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
-        toggle = findViewById(R.id.trackingButton)
         signal = findViewById(R.id.signalStrength)
         signal.setText(R.string.none)
+        trackingInfo = findViewById(R.id.trackingInfo)
+        trackingInfo.setText(R.string.Off)
         requestPermissions()
 
     }
@@ -72,39 +80,82 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
 
 
     private var locationPermissionRequest = registerForActivityResult(
-            ActivityResultContracts.RequestMultiplePermissions()
-        ) { permissions ->
-            when {
-                permissions.getOrDefault(Manifest.permission.ACCESS_BACKGROUND_LOCATION, false) -> {
-                    // Background location access granted.
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        when {
+            permissions.getOrDefault(Manifest.permission.ACCESS_BACKGROUND_LOCATION, false) -> {
+                // Background location access granted.
 
-                }
-                permissions.getOrDefault(Manifest.permission.ACCESS_FINE_LOCATION, false) ||
+            }
 
-                        permissions.getOrDefault(Manifest.permission.ACCESS_COARSE_LOCATION, false) -> {
-                    // Approximate or fine location access granted.
-                    setupLocationTracking()
-                    enableMyLocation()
+            permissions.getOrDefault(Manifest.permission.ACCESS_FINE_LOCATION, false) ||
 
-                }
+                    permissions.getOrDefault(Manifest.permission.ACCESS_COARSE_LOCATION, false)  ||
+                    (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+                        permissions.getOrDefault(Manifest.permission.ACTIVITY_RECOGNITION, false))-> {
+                // Approximate or fine location, and activity access granted.
+                setupActivityRecognition()
+                setupLocationTracking()
+                enableMyLocation()
 
-                else -> {
-                    // No location access granted.
-                    Toast.makeText(this, "Location permission denied", Toast.LENGTH_SHORT).show()
-                }
+            }
+
+            else -> {
+                // No location access granted.
+                Toast.makeText(this, "Tracking not possible due to insufficient permissions", Toast.LENGTH_SHORT).show()
             }
         }
-
-    // Check if access has already been granted previously.
-    private fun requestPermissions () {
-        locationPermissionRequest.launch(
-            arrayOf(
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.ACCESS_COARSE_LOCATION
-            )
-        )
     }
 
+    // Check if access has already been granted previously.
+    private fun requestPermissions() {
+        val permissionsToRequest = mutableListOf(
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        )
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            permissionsToRequest.add(Manifest.permission.ACTIVITY_RECOGNITION)
+        }
+
+        locationPermissionRequest.launch(permissionsToRequest.toTypedArray())
+    }
+
+    private fun setupActivityRecognition() {
+        if (ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACTIVITY_RECOGNITION
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
+            val client = ActivityRecognition.getClient(this)
+            client.requestActivityUpdates(
+                10000L,
+                getPendingIntent()
+            )
+
+        } else {
+            Toast.makeText(this, "Activity recognition permission not granted", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun getPendingIntent(): PendingIntent {
+        val intent = Intent(this, ActivityRecognitionReceiver::class.java)
+        return PendingIntent.getBroadcast(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE)
+    }
+
+    private val inVehicleReceiver = object : BroadcastReceiver() {
+        @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
+        override fun onReceive(context: Context?, intent: Intent?) {
+            intent?.getIntExtra("confidence", 0) ?: 0
+            startLocationUpdates()
+        }
+    }
+
+    private val vehicleExitReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            stopLocationUpdates()
+        }
+    }
 
     private fun setupLocationTracking() {
         if (ActivityCompat.checkSelfPermission(
@@ -112,9 +163,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
                 Manifest.permission.ACCESS_COARSE_LOCATION
             ) == PackageManager.PERMISSION_GRANTED
         ) {
-            toggle.setOnCheckedChangeListener { _, isChecked ->
-                if (isChecked) startLocationUpdates() else stopLocationUpdates()
-            }
             fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
             locationCallback = object : LocationCallback() {
                 override fun onLocationResult(locationResult: LocationResult) {
@@ -159,6 +207,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
             locationCallback,
             mainLooper
         )
+        trackingInfo.setText(R.string.On)
 
         if (ContextCompat.checkSelfPermission(
                 this,
@@ -174,12 +223,27 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
 
     override fun onResume() {
         super.onResume()
+        LocalBroadcastManager.getInstance(this).registerReceiver(
+            inVehicleReceiver,
+            IntentFilter("activity_in_vehicle_detected")
+        )
+        LocalBroadcastManager.getInstance(this).registerReceiver(
+            vehicleExitReceiver,
+            IntentFilter("activity_vehicle_exit_detected")
+        )
+    }
+
+    override fun onPause() {
+        super.onPause()
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(inVehicleReceiver)
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(vehicleExitReceiver)
     }
 
     private fun stopLocationUpdates() {
         if (::fusedLocationClient.isInitialized && ::locationCallback.isInitialized) {
             fusedLocationClient.removeLocationUpdates(locationCallback)
             signal.setText(R.string.none)
+            trackingInfo.setText(R.string.Off)
             sensorManager.unregisterListener(this)
         }
     }
@@ -220,6 +284,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
                 .position(location)
                 .title("Possible Bump Detected")
                 .snippet("Testi")
+
             googleMap.addMarker(markerOptions)
         }
         val tampere = LatLng(61.497234,23.759126)
