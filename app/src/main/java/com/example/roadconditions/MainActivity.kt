@@ -1,6 +1,8 @@
 package com.example.roadconditions
 
 import android.Manifest
+import android.provider.Settings
+import android.app.AlertDialog
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -12,6 +14,7 @@ import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.location.Location
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.widget.TextView
@@ -84,6 +87,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
         when {
             permissions.getOrDefault(Manifest.permission.ACCESS_BACKGROUND_LOCATION, false) -> {
                 // Background location access granted.
+                setupActivityRecognition()
+                setupLocationTracking()
+                enableMyLocation()
 
             }
 
@@ -96,7 +102,11 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
                 setupActivityRecognition()
                 setupLocationTracking()
                 enableMyLocation()
-
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
+                    !permissions.getOrDefault(Manifest.permission.ACCESS_BACKGROUND_LOCATION, false)
+                ) {
+                    showBackgroundLocationDialog()
+                }
             }
 
             else -> {
@@ -115,9 +125,27 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             permissionsToRequest.add(Manifest.permission.ACTIVITY_RECOGNITION)
+            permissionsToRequest.add(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+
         }
 
         locationPermissionRequest.launch(permissionsToRequest.toTypedArray())
+
+
+    }
+
+    private fun showBackgroundLocationDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("Background Location Needed")
+            .setMessage("To track bumps while the app is closed or minimized, please allow 'All the time' location access.")
+            .setPositiveButton("Go to Settings") { _, _ ->
+                val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                val uri = Uri.fromParts("package", packageName, null)
+                intent.data = uri
+                startActivity(intent)
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     private fun setupActivityRecognition() {
