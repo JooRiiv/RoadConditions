@@ -9,11 +9,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
-import android.hardware.Sensor
-import android.hardware.SensorEvent
-import android.hardware.SensorEventListener
-import android.hardware.SensorManager
-import android.location.Location
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -23,17 +18,11 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresPermission
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.google.android.gms.location.ActivityRecognition
-import com.google.android.gms.location.FusedLocationProviderClient
-import com.google.android.gms.location.LocationCallback
-import com.google.android.gms.location.LocationRequest
-import com.google.android.gms.location.LocationResult
-import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
@@ -41,14 +30,10 @@ import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
 
-class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListener {
+class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var googleMap: GoogleMap
-    private lateinit var fusedLocationClient: FusedLocationProviderClient
-    private lateinit var locationCallback: LocationCallback
     private lateinit var signal: TextView
     private lateinit var trackingInfo: TextView
-    private lateinit var sensorManager: SensorManager
-    private var accelerometer: Sensor? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -64,8 +49,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
         val mapFragment = supportFragmentManager
             .findFragmentById(R.id.map) as SupportMapFragment
         mapFragment.getMapAsync(this)
-        sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
-        accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
         signal = findViewById(R.id.signalStrength)
         trackingInfo = findViewById(R.id.trackingInfo)
         trackingInfo.setText(R.string.Off)
@@ -90,7 +73,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
             permissions[Manifest.permission.ACTIVITY_RECOGNITION] ?: false else true
 
         if ((fineLocation || coarseLocation) && activityRecognition) {
-            // Foreground permissions granted — now ask for background location if needed
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
                 ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                 requestBackgroundLocationPermission()
@@ -146,7 +128,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
 
     private fun startAppFunctions() {
         setupActivityRecognition()
-        setupLocationTracking()
+        startService(Intent(this, BumpDetection::class.java))
         enableMyLocation()
     }
 
@@ -175,33 +157,16 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
     private val inVehicleReceiver = object : BroadcastReceiver() {
         @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
         override fun onReceive(context: Context?, intent: Intent?) {
-            intent?.getIntExtra("confidence", 0) ?: 0
-            startLocationUpdates()
+            val confidence = intent?.getIntExtra("confidence", 0) ?: 0
+                if (confidence >= 75) {  // Example threshold
+                context?.startService(Intent(context, BumpDetection::class.java))
+            }
         }
     }
 
     private val vehicleExitReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            stopLocationUpdates()
-        }
-    }
-
-    private fun setupLocationTracking() {
-        if (ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_COARSE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED
-        ) {
-            fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
-            locationCallback = object : LocationCallback() {
-                override fun onLocationResult(locationResult: LocationResult) {
-                    super.onLocationResult(locationResult)
-                    for (location: Location in locationResult.locations) {
-                        val userLatLng = LatLng(location.latitude, location.longitude)
-                        googleMap.animateCamera(CameraUpdateFactory.newLatLng(userLatLng))
-                    }
-                }
-            }
+            context?.stopService(Intent(context, BumpDetection::class.java))
         }
     }
 
@@ -228,38 +193,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
         }
     }
 
-    @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
-    private fun startLocationUpdates() {
-
-        val locationRequest = LocationRequest.create().apply {
-            interval = 1000
-            fastestInterval = 500
-            priority = LocationRequest.PRIORITY_HIGH_ACCURACY
-        }
-
-        accelerometer?.also { sensor ->
-            sensorManager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_UI)
-        }
-
-        fusedLocationClient.requestLocationUpdates(
-            locationRequest,
-            locationCallback,
-            mainLooper
-        )
-        trackingInfo.setText(R.string.On)
-
-        if (ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_FINE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED
-        ) {
-            signal.setText(R.string.strong)
-
-        } else
-            signal.setText(R.string.weak)
-
-    }
-
     override fun onResume() {
         super.onResume()
         LocalBroadcastManager.getInstance(this).registerReceiver(
@@ -276,40 +209,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
         super.onPause()
         LocalBroadcastManager.getInstance(this).unregisterReceiver(inVehicleReceiver)
         LocalBroadcastManager.getInstance(this).unregisterReceiver(vehicleExitReceiver)
-    }
-
-    private fun stopLocationUpdates() {
-        if (::fusedLocationClient.isInitialized && ::locationCallback.isInitialized) {
-            fusedLocationClient.removeLocationUpdates(locationCallback)
-            signal.setText(R.string.none)
-            trackingInfo.setText(R.string.Off)
-            sensorManager.unregisterListener(this)
-        }
-    }
-
-    private var lastBumpTime = 0L
-    private val bumpCooldown = 2000L
-
-    override fun onSensorChanged(event: SensorEvent?) {
-        event?.let {
-            val z = it.values[2]
-
-            val verticalAcceleration = Math.abs(z - SensorManager.GRAVITY_EARTH)
-
-            val bumpThreshold = 15.0f
-
-            val currentTime = System.currentTimeMillis()
-            if (verticalAcceleration > bumpThreshold && currentTime - lastBumpTime > bumpCooldown) {
-                lastBumpTime = currentTime
-                onBumpDetected()
-            }
-        }
-    }
-
-    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
-
-    private fun onBumpDetected() {
-        Toast.makeText(this, "Bump detected", Toast.LENGTH_SHORT).show()
     }
 
     private fun addCustomMarker() {
