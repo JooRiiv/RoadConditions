@@ -1,10 +1,10 @@
 <resources>
     <string name="app_name">Road Conditions</string>
     <string name="tracking">Tracking</string>
-    <string name="signalHeader">Signal Strength:</string>
-    <string name="signalStrength">Strong/Weak/None</string>
-    <string name="strong">Strong</string>
-    <string name="weak">Weak</string>
+    <string name="signalHeader">Location Method:</string>
+    <string name="signalStrength">GPS/Wifi + Cell</string>
+    <string name="strong">GPS</string>
+    <string name="weak">Wifi/Cell</string>
     <string name="none">None</string>
     <string name="TrackingInfo">On/Off</string>
     <string name="On">On></string>

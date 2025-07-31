@@ -64,7 +64,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
         sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
         accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
         signal = findViewById(R.id.signalStrength)
-        signal.setText(R.string.none)
         trackingInfo = findViewById(R.id.trackingInfo)
         trackingInfo.setText(R.string.Off)
         requestPermissions()
@@ -186,6 +185,16 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, SensorEventListene
             PackageManager.PERMISSION_GRANTED
         ) {
             googleMap.isMyLocationEnabled = true
+
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.ACCESS_FINE_LOCATION
+                ) == PackageManager.PERMISSION_GRANTED
+            ) {
+                signal.setText(R.string.strong)
+
+            } else
+                signal.setText(R.string.weak)
         }
     }
 
