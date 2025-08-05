@@ -29,6 +29,7 @@ import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
+import com.example.roadconditions.BumpDetection
 
 class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var googleMap: GoogleMap
@@ -53,7 +54,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         trackingInfo = findViewById(R.id.trackingInfo)
         trackingInfo.setText(R.string.Off)
         requestPermissions()
-
     }
 
     override fun onMapReady(map: GoogleMap) {
@@ -67,6 +67,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private var foregroundPermissionRequest = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
+        val notifications = permissions[Manifest.permission.POST_NOTIFICATIONS] ?: false
         val fineLocation = permissions[Manifest.permission.ACCESS_FINE_LOCATION] ?: false
         val coarseLocation = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] ?: false
         val activityRecognition = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
@@ -103,6 +104,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             permissionsToRequest.add(Manifest.permission.ACTIVITY_RECOGNITION)
         }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS)
+        }
         foregroundPermissionRequest.launch(permissionsToRequest.toTypedArray())
     }
 
@@ -128,7 +132,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private fun startAppFunctions() {
         setupActivityRecognition()
-        startService(Intent(this, BumpDetection::class.java))
         enableMyLocation()
     }
 
@@ -158,8 +161,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
         override fun onReceive(context: Context?, intent: Intent?) {
             val confidence = intent?.getIntExtra("confidence", 0) ?: 0
-                if (confidence >= 75) {  // Example threshold
+                if (confidence >= 75) {
                 context?.startService(Intent(context, BumpDetection::class.java))
+                    trackingInfo.setText(R.string.On)
             }
         }
     }
@@ -167,6 +171,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private val vehicleExitReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             context?.stopService(Intent(context, BumpDetection::class.java))
+            trackingInfo.setText(R.string.Off)
         }
     }
 
