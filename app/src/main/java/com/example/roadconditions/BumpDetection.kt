@@ -14,12 +14,15 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.widget.Toast
-import androidx.annotation.RequiresPermission
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationServices
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class BumpDetection : Service(), SensorEventListener {
 
@@ -47,7 +50,6 @@ class BumpDetection : Service(), SensorEventListener {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // Check permissions before starting location updates
         if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
             checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             startLocationUpdates()
@@ -59,19 +61,21 @@ class BumpDetection : Service(), SensorEventListener {
         return START_STICKY
     }
 
-    @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
     private fun startLocationUpdates() {
-        val locationRequest = LocationRequest.create().apply {
-            interval = 1000
-            fastestInterval = 500
-            priority = LocationRequest.PRIORITY_HIGH_ACCURACY
-        }
+        if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+            checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            val locationRequest = LocationRequest.create().apply {
+                interval = 1000
+                fastestInterval = 500
+                priority = LocationRequest.PRIORITY_HIGH_ACCURACY
+            }
 
-        fusedLocationClient.requestLocationUpdates(
-            locationRequest,
-            locationCallback,
-            Looper.getMainLooper()
-        )
+            fusedLocationClient.requestLocationUpdates(
+                locationRequest,
+                locationCallback,
+                Looper.getMainLooper()
+            )
+        }
     }
 
     private fun stopLocationUpdates() {
@@ -91,12 +95,34 @@ class BumpDetection : Service(), SensorEventListener {
         if (verticalAcceleration > 15.0f && System.currentTimeMillis() - lastBumpTime > bumpCooldown) {
             lastBumpTime = System.currentTimeMillis()
             showBumpToast()
+            bumpNotification()
         }
     }
 
     private fun showBumpToast() {
         Handler(Looper.getMainLooper()).post {
             Toast.makeText(this, "Bump detected", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun bumpNotification() {
+        val formatter = SimpleDateFormat("HH:mm", Locale.getDefault())
+        val currentTime = formatter.format(Date())
+        val builder = NotificationCompat.Builder(this, "CHANNEL_ID")
+            .setSmallIcon(R.drawable.bumpnotificationicon)
+            .setContentTitle("Bump deteced!")
+            .setContentText("Bump detected at $currentTime.")
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
+                with(NotificationManagerCompat.from(this)) {
+                    notify(1001, builder.build())
+                }
+            }
+        } else {
+            with(NotificationManagerCompat.from(this)) {
+                notify(1001, builder.build())
+            }
         }
     }
 
