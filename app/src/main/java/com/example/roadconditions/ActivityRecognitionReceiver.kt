@@ -25,7 +25,12 @@ class ActivityRecognitionReceiver : BroadcastReceiver() {
                         }
                     }
 
-                    DetectedActivity.STILL -> {
+                    DetectedActivity.STILL,
+                    DetectedActivity.ON_FOOT,
+                    DetectedActivity.WALKING,
+                    DetectedActivity.ON_BICYCLE,
+                    DetectedActivity.RUNNING,
+                    DetectedActivity.TILTING -> {
                         context?.let {
                             val localIntent = Intent("activity_vehicle_exit_detected")
                             localIntent.putExtra("confidence", confidence)

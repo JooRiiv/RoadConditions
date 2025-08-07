@@ -7,6 +7,6 @@
     <string name="weak">Wifi/Cell</string>
     <string name="none">None</string>
     <string name="TrackingInfo">On/Off</string>
-    <string name="On">On></string>
+    <string name="On">On</string>
     <string name="Off">Off</string>
 </resources>
