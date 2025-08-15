@@ -16,7 +16,6 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.annotation.RequiresPermission
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
@@ -158,23 +157,26 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         return PendingIntent.getBroadcast(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE)
     }
 
-    private val inVehicleReceiver = object : BroadcastReceiver() {
-        @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
+    private val vehicleStateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            val confidence = intent?.getIntExtra("confidence", 0) ?: 0
-                if (confidence >= 75) {
-                context?.startService(Intent(context, BumpDetection::class.java))
-                    trackingInfo.setText(R.string.On)
-            }
+            val inVehicle = intent?.getBooleanExtra("inVehicle", false) ?: false
+            trackingInfo.setText(if (inVehicle) R.string.On else R.string.Off)
         }
     }
 
-    private val vehicleExitReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            context?.stopService(Intent(context, BumpDetection::class.java))
-            trackingInfo.setText(R.string.Off)
-        }
+    override fun onResume() {
+        super.onResume()
+        LocalBroadcastManager.getInstance(this).registerReceiver(
+            vehicleStateReceiver,
+            IntentFilter("vehicle_state_changed")
+        )
     }
+
+    override fun onPause() {
+        super.onPause()
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(vehicleStateReceiver)
+    }
+
 
     private fun enableMyLocation() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==
@@ -197,24 +199,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             } else
                 signal.setText(R.string.weak)
         }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        LocalBroadcastManager.getInstance(this).registerReceiver(
-            inVehicleReceiver,
-            IntentFilter("activity_in_vehicle_detected")
-        )
-        LocalBroadcastManager.getInstance(this).registerReceiver(
-            vehicleExitReceiver,
-            IntentFilter("activity_vehicle_exit_detected")
-        )
-    }
-
-    override fun onPause() {
-        super.onPause()
-        LocalBroadcastManager.getInstance(this).unregisterReceiver(inVehicleReceiver)
-        LocalBroadcastManager.getInstance(this).unregisterReceiver(vehicleExitReceiver)
     }
 
     private fun addCustomMarker() {

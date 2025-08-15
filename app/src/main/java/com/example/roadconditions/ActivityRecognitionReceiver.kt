@@ -3,42 +3,38 @@ package com.example.roadconditions
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import androidx.core.content.ContextCompat
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.google.android.gms.location.ActivityRecognitionResult
 import com.google.android.gms.location.DetectedActivity
 
 class ActivityRecognitionReceiver : BroadcastReceiver() {
+
     override fun onReceive(context: Context?, intent: Intent?) {
-        intent?.let { nonNullIntent ->
-            if (ActivityRecognitionResult.hasResult(nonNullIntent)) {
-                val result = ActivityRecognitionResult.extractResult(nonNullIntent) ?: return
-                val activity = result.mostProbableActivity
-                val type = activity.type
-                val confidence = activity.confidence
+        if (context == null || intent == null) return
+        if (!ActivityRecognitionResult.hasResult(intent)) return
 
-                when (type) {
-                    DetectedActivity.IN_VEHICLE -> {
-                        context?.let {
-                            val localIntent = Intent("activity_in_vehicle_detected")
-                            localIntent.putExtra("confidence", confidence)
-                            LocalBroadcastManager.getInstance(it).sendBroadcast(localIntent)
-                        }
-                    }
+        val result = ActivityRecognitionResult.extractResult(intent) ?: return
+        val activities = result.probableActivities
 
-                    DetectedActivity.STILL,
-                    DetectedActivity.ON_FOOT,
-                    DetectedActivity.WALKING,
-                    DetectedActivity.ON_BICYCLE,
-                    DetectedActivity.RUNNING,
-                    DetectedActivity.TILTING -> {
-                        context?.let {
-                            val localIntent = Intent("activity_vehicle_exit_detected")
-                            localIntent.putExtra("confidence", confidence)
-                            LocalBroadcastManager.getInstance(it).sendBroadcast(localIntent)
-                        }
-                    }
-                }
+        var inVehicleDetected = false
+
+        for (activity in activities) {
+            if (activity.type == DetectedActivity.IN_VEHICLE && activity.confidence >= 50) {
+                inVehicleDetected = true
+                val serviceIntent = Intent(context, BumpDetection::class.java)
+                ContextCompat.startForegroundService(context, serviceIntent)
+                break
             }
         }
+
+        if (!inVehicleDetected) {
+            context.stopService(Intent(context, BumpDetection::class.java))
+        }
+
+        val uiIntent = Intent("vehicle_state_changed")
+        uiIntent.putExtra("inVehicle", inVehicleDetected)
+        LocalBroadcastManager.getInstance(context).sendBroadcast(uiIntent)
     }
 }
+
