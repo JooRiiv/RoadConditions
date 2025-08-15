@@ -105,26 +105,26 @@ class BumpDetection : Service(), SensorEventListener {
         }
     }
 
-    fun bumpNotification() {
-        val formatter = SimpleDateFormat("HH:mm", Locale.getDefault())
-        val currentTime = formatter.format(Date())
-        val builder = NotificationCompat.Builder(this, "CHANNEL_ID")
-            .setSmallIcon(R.drawable.bumpnotificationicon)
-            .setContentTitle("Bump deteced!")
-            .setContentText("Bump detected at $currentTime.")
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
+        fun bumpNotification() {
+            val formatter = SimpleDateFormat("HH:mm", Locale.getDefault())
+            val currentTime = formatter.format(Date())
+            val builder = NotificationCompat.Builder(this, "bump_service_channel")
+                .setSmallIcon(R.drawable.bumpnotificationicon)
+                .setContentTitle("Bump deteced!")
+                .setContentText("Bump detected at $currentTime.")
+                .setPriority(NotificationCompat.PRIORITY_LOW)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
+                    with(NotificationManagerCompat.from(this)) {
+                        notify(1001, builder.build())
+                    }
+                }
+            } else {
                 with(NotificationManagerCompat.from(this)) {
                     notify(1001, builder.build())
                 }
             }
-        } else {
-            with(NotificationManagerCompat.from(this)) {
-                notify(1001, builder.build())
-            }
         }
-    }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
 
