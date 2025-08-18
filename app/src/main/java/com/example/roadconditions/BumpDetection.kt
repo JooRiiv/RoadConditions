@@ -110,7 +110,7 @@ class BumpDetection : Service(), SensorEventListener {
             val currentTime = formatter.format(Date())
             val builder = NotificationCompat.Builder(this, "bump_service_channel")
                 .setSmallIcon(R.drawable.bumpnotificationicon)
-                .setContentTitle("Bump deteced!")
+                .setContentTitle("Bump detected!")
                 .setContentText("Bump detected at $currentTime.")
                 .setPriority(NotificationCompat.PRIORITY_LOW)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
