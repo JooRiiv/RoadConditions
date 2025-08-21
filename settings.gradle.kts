@@ -16,4 +16,3 @@ dependencyResolutionManagement {
 
 rootProject.name = "RoadConditions"
 include(":Frontend:app")
-include(":Backend")

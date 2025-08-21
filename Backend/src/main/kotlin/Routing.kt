@@ -7,6 +7,7 @@ import io.ktor.server.request.*
 import io.ktor.server.routing.*
 import org.bson.Document
 import com.mongodb.client.MongoCollection
+import io.ktor.http.HttpStatusCode
 
 fun Application.registerBumpsRoutes(collection: MongoCollection<Document>) {
     routing {
@@ -23,17 +24,32 @@ fun Application.registerBumpsRoutes(collection: MongoCollection<Document>) {
             call.respond(bumps)
         }
 
+        get("/") {
+            call.respondText("Hello from RoadConditions API")
+        }
+
         post("/bumps") {
-            val bump = call.receive<Bump>()
-            collection.insertOne(
-                Document().apply {
-                    append("latitude", bump.latitude)
-                    append("longitude", bump.longitude)
-                    append("signal", bump.signal)
-                    append("timestamp", java.time.Instant.now().toString())
-                }
-            )
-            call.respond(mapOf("status" to "success"))
+            try {
+                println("Attempting to receive bump...")
+                val bump = call.receive<Bump>()
+                println("Received bump: $bump")
+                collection.insertOne(
+                    Document().apply {
+                        append("latitude", bump.latitude)
+                        append("longitude", bump.longitude)
+                        append("signal", bump.signal)
+                        append("timestamp", bump.timestamp)
+                    }
+                )
+                println("Inserted bump into MongoDB")
+                call.respond(mapOf("status" to "success"))
+            } catch (e: Exception) {
+                println("Error inserting bump: ${e.message}")
+                call.respond(
+                    HttpStatusCode.InternalServerError,
+                    mapOf("error" to "Failed to save bump")
+                )
+            }
         }
     }
 }

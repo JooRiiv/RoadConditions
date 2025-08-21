@@ -13,16 +13,33 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.util.Log
 import android.widget.Toast
+import androidx.annotation.RequiresPermission
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationServices
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.cio.CIO
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.http.ContentType
+import io.ktor.http.contentType
+import io.ktor.serialization.kotlinx.json.json
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.abs
+
 
 class BumpDetection : Service(), SensorEventListener {
 
@@ -51,7 +68,8 @@ class BumpDetection : Service(), SensorEventListener {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
-            checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        ) {
             startLocationUpdates()
         } else {
             stopSelf()
@@ -63,7 +81,8 @@ class BumpDetection : Service(), SensorEventListener {
 
     private fun startLocationUpdates() {
         if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
-            checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        ) {
             val locationRequest = LocationRequest.create().apply {
                 interval = 1000
                 fastestInterval = 500
@@ -82,20 +101,58 @@ class BumpDetection : Service(), SensorEventListener {
         fusedLocationClient.removeLocationUpdates(locationCallback)
     }
 
+    private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
     override fun onDestroy() {
         sensorManager.unregisterListener(this)
         stopLocationUpdates()
+        serviceScope.cancel()
         super.onDestroy()
     }
 
+    object BumpClient {
+        private const val ENDPOINT_URL =
+            "https://roadconditions-api.azurewebsites.net/bumps"
+        private val client = HttpClient(CIO) {
+            install(ContentNegotiation) {
+                json()
+            }
+        }
+        suspend fun postBump(bump: Bump) {
+            client.post(ENDPOINT_URL) {
+                contentType(ContentType.Application.Json)
+                setBody(bump)
+            }
+        }
+    }
+
+    @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
     override fun onSensorChanged(event: SensorEvent?) {
         val z = event?.values?.get(2) ?: return
-        val verticalAcceleration = kotlin.math.abs(z - SensorManager.GRAVITY_EARTH)
+        val verticalAcceleration = abs(z - SensorManager.GRAVITY_EARTH)
 
         if (verticalAcceleration > 15.0f && System.currentTimeMillis() - lastBumpTime > bumpCooldown) {
             lastBumpTime = System.currentTimeMillis()
             showBumpToast()
             bumpNotification()
+
+            fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+                if (location != null) {
+                    val bump = Bump(
+                        latitude = location.latitude,
+                        longitude = location.longitude,
+                        signal = "strong"
+                    )
+                    CoroutineScope(Dispatchers.IO).launch {
+                        try {
+                            BumpClient.postBump(bump)
+                            Log.i("BumpDetection", "Posted bump succesfully")
+                        } catch (e: Exception) {
+                            Log.e("BumpDetection", "Failed to post bump", e)
+                        }
+                    }
+                }
+            }
         }
     }
 

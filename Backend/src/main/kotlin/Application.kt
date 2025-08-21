@@ -20,6 +20,8 @@ fun main() {
         val bumpsCollection: MongoCollection<Document> = database.getCollection("bumps")
         val port = System.getenv("PORT")?.toInt() ?: 8080
 
+        println("Connected to MongoDB: ${bumpsCollection.namespace.fullName}")
+
         embeddedServer(Netty, port = port, host = "0.0.0.0") {
             install(ContentNegotiation) {
                 json()
