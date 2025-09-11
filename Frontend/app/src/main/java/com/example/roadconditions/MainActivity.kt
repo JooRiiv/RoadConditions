@@ -1,7 +1,8 @@
 package com.example.roadconditions
 
+import BumpClusterItem
 import android.Manifest
-import android.provider.Settings
+import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
@@ -12,27 +13,42 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
+import android.util.Log
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.google.android.gms.location.ActivityRecognition
-import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
-import com.google.android.gms.maps.model.LatLng
-import com.google.android.gms.maps.model.MarkerOptions
+import com.google.maps.android.clustering.ClusterManager
+import io.ktor.client.HttpClient
+import io.ktor.client.call.body
+import io.ktor.client.engine.cio.CIO
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.get
+import io.ktor.serialization.kotlinx.json.json
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var googleMap: GoogleMap
     private lateinit var signal: TextView
     private lateinit var trackingInfo: TextView
+
+    private lateinit var clusterManager: ClusterManager<BumpClusterItem>
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -54,13 +70,18 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         requestPermissions()
     }
 
+    @SuppressLint("PotentialBehaviorOverride")
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onMapReady(map: GoogleMap) {
         googleMap = map
-        addCustomMarker()
+        clusterManager = ClusterManager(this, googleMap)
+        googleMap.setOnCameraIdleListener(clusterManager)
+        googleMap.setOnMarkerClickListener(clusterManager)
         map.getUiSettings().isZoomControlsEnabled = true
         map.getUiSettings().isMapToolbarEnabled = false
-    }
 
+        showBumpsOnMap()
+    }
 
     private var foregroundPermissionRequest = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -75,13 +96,21 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         if ((fineLocation || coarseLocation) && activityRecognition) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
-                ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.ACCESS_BACKGROUND_LOCATION
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
                 requestBackgroundLocationPermission()
             } else {
                 startAppFunctions()
             }
         } else {
-            Toast.makeText(this, "Foreground location or activity recognition permission denied", Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                this,
+                "Foreground location or activity recognition permission denied",
+                Toast.LENGTH_SHORT
+            ).show()
         }
     }
 
@@ -148,13 +177,19 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             )
 
         } else {
-            Toast.makeText(this, "Activity recognition permission not granted", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Activity recognition permission not granted", Toast.LENGTH_SHORT)
+                .show()
         }
     }
 
     private fun getPendingIntent(): PendingIntent {
         val intent = Intent(this, ActivityRecognitionReceiver::class.java)
-        return PendingIntent.getBroadcast(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE)
+        return PendingIntent.getBroadcast(
+            this,
+            0,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+        )
     }
 
     private val vehicleStateReceiver = object : BroadcastReceiver() {
@@ -176,7 +211,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         super.onPause()
         LocalBroadcastManager.getInstance(this).unregisterReceiver(vehicleStateReceiver)
     }
-
 
     private fun enableMyLocation() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==
@@ -201,21 +235,51 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
-    private fun addCustomMarker() {
-        // Mock data
-        val locations = listOf(LatLng(61.462087, 23.843748),
-            LatLng(61.465286, 23.812305),
-            LatLng(61.471189, 23.861733)
-        )
-        for (location in locations) {
-            val markerOptions = MarkerOptions()
-                .position(location)
-                .title("Possible Bump Detected")
-                .snippet("Testi")
-
-            googleMap.addMarker(markerOptions)
+    object BumpClient {
+        private const val ENDPOINT_URL =
+            "https://roadconditions.yellowglacier-a8220dfb.norwayeast.azurecontainerapps.io/bumps"
+        private val client = HttpClient(CIO) {
+            install(ContentNegotiation) {
+                json()
+            }
         }
-        val tampere = LatLng(61.497234,23.759126)
-        googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(tampere, 12f))
+
+        @RequiresApi(Build.VERSION_CODES.O)
+        suspend fun getAllBumps(): List<Bump> {
+            return client.get(ENDPOINT_URL)
+                .body()
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    private fun showBumpsOnMap() {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
+                inputFormat.timeZone = java.util.TimeZone.getTimeZone("UTC")
+
+                val outputFormat = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault())
+                val bumps = BumpClient.getAllBumps()
+
+                withContext(Dispatchers.Main) {
+                    clusterManager.clearItems()
+                    for (bump in bumps) {
+                        val parsedDate = inputFormat.parse(bump.timestamp)
+                        val formattedDate = parsedDate?.let { outputFormat.format(it) } ?: bump.timestamp
+
+                        val item = BumpClusterItem(
+                            bump.latitude,
+                            bump.longitude,
+                            "Possible ${bump.signal} bump detected",
+                            "Date and time: $formattedDate"
+                        )
+                        clusterManager.addItem(item)
+                    }
+                    clusterManager.cluster()
+                }
+            } catch (e: Exception) {
+                Log.e("Map", "Failed to load bumps", e)
+            }
+        }
     }
 }

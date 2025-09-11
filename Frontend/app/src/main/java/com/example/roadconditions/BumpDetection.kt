@@ -38,6 +38,7 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.TimeZone
 import kotlin.math.abs
 
 
@@ -112,7 +113,7 @@ class BumpDetection : Service(), SensorEventListener {
 
     object BumpClient {
         private const val ENDPOINT_URL =
-            "https://roadconditions-api.azurewebsites.net/bumps"
+            "https://roadconditions.yellowglacier-a8220dfb.norwayeast.azurecontainerapps.io/bumps"
         private val client = HttpClient(CIO) {
             install(ContentNegotiation) {
                 json()
@@ -138,21 +139,36 @@ class BumpDetection : Service(), SensorEventListener {
 
             fusedLocationClient.lastLocation.addOnSuccessListener { location ->
                 if (location != null) {
+                    val timestamp =
+                        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault()).apply {
+                            timeZone = TimeZone.getTimeZone("UTC")
+                        }.format(Date())
+
+                    val signalType =
+                        if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                            "precise"
+                        } else {
+                            "coarse"
+                        }
+
                     val bump = Bump(
                         latitude = location.latitude,
                         longitude = location.longitude,
-                        signal = "strong"
+                        timestamp = timestamp,
+                        signal = signalType
                     )
+
                     CoroutineScope(Dispatchers.IO).launch {
                         try {
                             BumpClient.postBump(bump)
-                            Log.i("BumpDetection", "Posted bump succesfully")
+                            Log.i("BumpDetection", "Posted bump successfully")
                         } catch (e: Exception) {
                             Log.e("BumpDetection", "Failed to post bump", e)
                         }
                     }
                 }
             }
+
         }
     }
 
