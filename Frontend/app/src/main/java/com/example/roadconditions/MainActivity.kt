@@ -26,9 +26,12 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.google.android.gms.location.ActivityRecognition
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
+import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.clustering.ClusterManager
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -222,19 +225,24 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             PackageManager.PERMISSION_GRANTED
         ) {
             googleMap.isMyLocationEnabled = true
+            val fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+            fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+                if (location != null) {
+                    val userLatLng = LatLng(location.latitude, location.longitude)
+                    googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(userLatLng, 15f))
+                    if (ContextCompat.checkSelfPermission(
+                            this,
+                            Manifest.permission.ACCESS_FINE_LOCATION
+                        ) == PackageManager.PERMISSION_GRANTED
+                    ) {
+                        signal.setText(R.string.strong)
 
-            if (ContextCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.ACCESS_FINE_LOCATION
-                ) == PackageManager.PERMISSION_GRANTED
-            ) {
-                signal.setText(R.string.strong)
-
-            } else
-                signal.setText(R.string.weak)
+                    } else
+                        signal.setText(R.string.weak)
+                }
+            }
         }
     }
-
     object BumpClient {
         private const val ENDPOINT_URL =
             "https://roadconditions.yellowglacier-a8220dfb.norwayeast.azurecontainerapps.io/bumps"
