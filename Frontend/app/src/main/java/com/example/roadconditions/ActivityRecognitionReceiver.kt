@@ -23,7 +23,7 @@ class ActivityRecognitionReceiver : BroadcastReceiver() {
 
         for (activity in activities) {
             Log.d("ActivityRecognition", "Detected: ${activity.type}, Confidence: ${activity.confidence}")
-            if (activity.type == DetectedActivity.IN_VEHICLE && activity.confidence >= 50) {
+            if (activity.type == DetectedActivity.IN_VEHICLE && activity.confidence >= 35) {
                 inVehicleDetected = true
                 val serviceIntent = Intent(context, BumpDetection::class.java)
                 ContextCompat.startForegroundService(context, serviceIntent)
