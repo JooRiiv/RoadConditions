@@ -54,7 +54,6 @@ class BumpDetection : Service(), SensorEventListener {
 
     override fun onCreate() {
         super.onCreate()
-
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
         accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
         accelerometer?.let {
@@ -68,6 +67,7 @@ class BumpDetection : Service(), SensorEventListener {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        startForeground(1, createNotification())
         if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
             checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
         ) {
@@ -75,8 +75,6 @@ class BumpDetection : Service(), SensorEventListener {
         } else {
             stopSelf()
         }
-
-        startForeground(1, createNotification())
         return START_STICKY
     }
 
