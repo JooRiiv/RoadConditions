@@ -12,4 +12,5 @@ class BumpClusterItem(
     override fun getPosition(): LatLng = LatLng(lat, lng)
     override fun getTitle(): String = title
     override fun getSnippet(): String = snippet
+    override fun getZIndex(): Float? = null
 }
