@@ -50,7 +50,7 @@ class BumpDetection : Service(), SensorEventListener {
 
     private var accelerometer: Sensor? = null
     private var lastBumpTime = 0L
-    private val bumpCooldown = 2000L
+    private val bumpCooldown = 30000L
 
     override fun onCreate() {
         super.onCreate()
