@@ -1,6 +1,5 @@
 package com.example.roadconditions
 
-import BumpClusterItem
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.AlertDialog
