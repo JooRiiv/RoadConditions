@@ -85,8 +85,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         googleMap.setOnCameraIdleListener(clusterManager)
         googleMap.setOnMarkerClickListener(clusterManager)
 
-        map.getUiSettings().isZoomControlsEnabled = true
-        map.getUiSettings().isMapToolbarEnabled = false
+        map.uiSettings.isZoomControlsEnabled = true
+        map.uiSettings.isMapToolbarEnabled = false
 
         showBumpsOnMap()
     }
