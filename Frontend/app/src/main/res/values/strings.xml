@@ -1,11 +1,11 @@
 <resources>
     <string name="app_name">Road Conditions</string>
     <string name="tracking">Tracking</string>
-    <string name="signalHeader">Location Method:</string>
-    <string name="signalStrength">GPS/Wifi + Cell</string>
-    <string name="strong">GPS</string>
-    <string name="weak">Wifi/Cell</string>
-    <string name="none">None</string>
+    <string name="accuracyHeader">Accuracy</string>
+    <string name="accuracyType">GPS/Wifi + Cell</string>
+    <string name="strong">Precise (GPS)</string>
+    <string name="weak">Approximate (Wi-fi/Cellular)</string>
+    <string name="none">Unavailable</string>
     <string name="TrackingInfo">On/Off</string>
     <string name="On">On</string>
     <string name="Off">Off</string>
