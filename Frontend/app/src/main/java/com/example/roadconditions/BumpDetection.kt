@@ -157,7 +157,7 @@ class BumpDetection : Service(), SensorEventListener {
                         signal = signalType
                     )
 
-                    CoroutineScope(Dispatchers.IO).launch {
+                    serviceScope.launch {
                         try {
                             BumpClient.postBump(bump)
                             Log.i("BumpDetection", "Posted bump successfully")
