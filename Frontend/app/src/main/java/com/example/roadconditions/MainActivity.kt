@@ -50,8 +50,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var googleMap: GoogleMap
     private lateinit var signal: TextView
     private lateinit var trackingInfo: TextView
-
     private lateinit var clusterManager: ClusterManager<BumpClusterItem>
+    private lateinit var infoWindowAdapter: CustomInfoWindowAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -78,8 +78,13 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     override fun onMapReady(map: GoogleMap) {
         googleMap = map
         clusterManager = ClusterManager(this, googleMap)
+
+        infoWindowAdapter = CustomInfoWindowAdapter(this)
+        clusterManager.markerCollection.setInfoWindowAdapter(CustomInfoWindowAdapter(this))
+
         googleMap.setOnCameraIdleListener(clusterManager)
         googleMap.setOnMarkerClickListener(clusterManager)
+
         map.getUiSettings().isZoomControlsEnabled = true
         map.getUiSettings().isMapToolbarEnabled = false
 
@@ -167,6 +172,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         enableMyLocation()
     }
 
+
     private fun setupActivityRecognition() {
         if (ContextCompat.checkSelfPermission(
                 this,
@@ -175,7 +181,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         ) {
             val client = ActivityRecognition.getClient(this)
             client.requestActivityUpdates(
-                10000L,
+                3000L,
                 getPendingIntent()
             )
 
@@ -266,7 +272,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
                 inputFormat.timeZone = java.util.TimeZone.getTimeZone("UTC")
 
-                val outputFormat = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault())
+                val outputFormat = SimpleDateFormat("dd.MM.yyyy HH:mm:ss", Locale.getDefault())
                 val bumps = BumpClient.getAllBumps()
 
                 withContext(Dispatchers.Main) {
@@ -278,8 +284,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                         val item = BumpClusterItem(
                             bump.latitude,
                             bump.longitude,
-                            "Possible ${bump.signal} bump detected",
-                            "Date and time: $formattedDate"
+                            "A possible bump detected",
+                            "Date and time: $formattedDate\nAccuracy: ${bump.signal}"
                         )
                         clusterManager.addItem(item)
                     }
