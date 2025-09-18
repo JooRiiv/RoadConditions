@@ -16,18 +16,18 @@ application {
 }
 
 dependencies {
-    implementation("io.ktor:ktor-server-core-jvm:3.2.3")
-    implementation("io.ktor:ktor-server-netty-jvm:3.2.3")
-    implementation("io.ktor:ktor-serialization-kotlinx-json:3.2.3")
-    implementation("io.ktor:ktor-server-content-negotiation:3.2.3")
-    implementation("ch.qos.logback:logback-classic:1.4.11")
-    implementation("org.mongodb:mongodb-driver-sync:4.11.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.4.1")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
-    implementation("io.ktor:ktor-server-call-logging-jvm:3.2.3")
+    implementation(libs.ktor.server.core.jvm)
+    implementation(libs.ktor.server.netty.jvm)
+    implementation(libs.ktor.serialization.kotlinx.json)
+    implementation(libs.ktor.server.content.negotiation)
+    implementation(libs.logback.classic)
+    implementation(libs.mongodb.driver.sync)
+    implementation(libs.kotlinx.datetime)
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.ktor.server.call.logging.jvm)
 
-    testImplementation("io.ktor:ktor-server-test-host:3.2.3")
-    testImplementation("org.jetbrains.kotlin:kotlin-test-junit:1.9.0")
+    testImplementation(libs.ktor.server.test.host)
+    testImplementation(libs.kotlin.test.junit)
 }
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile> {
