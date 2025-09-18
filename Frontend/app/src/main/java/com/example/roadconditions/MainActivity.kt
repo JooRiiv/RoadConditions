@@ -21,6 +21,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.content.edit
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
@@ -88,6 +89,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         map.uiSettings.isMapToolbarEnabled = false
 
         showBumpsOnMap()
+
     }
 
     private var foregroundPermissionRequest = registerForActivityResult(
@@ -169,6 +171,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private fun startAppFunctions() {
         setupActivityRecognition()
         enableMyLocation()
+        promptIgnoreBatteryOptimizations()
     }
 
 
@@ -248,6 +251,33 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             }
         }
     }
+
+    private fun hasAskedBatteryOptimization(): Boolean {
+        val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
+        return prefs.getBoolean("asked_battery_optimization", false)
+    }
+
+    private fun setAskedBatteryOptimization() {
+        val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
+        prefs.edit{putBoolean("asked_battery_optimization", true)}
+    }
+
+    private fun promptIgnoreBatteryOptimizations() {
+        if (hasAskedBatteryOptimization()) return
+        AlertDialog.Builder(this)
+            .setTitle("Battery Optimization Notice")
+            .setMessage("To improve background tracking accuracy, consider excluding this app from battery optimization in your device settings.")
+            .setPositiveButton("Open Settings") { _, _ ->
+                val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+                setAskedBatteryOptimization()
+                startActivity(intent)
+            }
+            .setNegativeButton("Cancel"){ _, _ ->
+                setAskedBatteryOptimization()
+            }
+            .show()
+    }
+
     object BumpClient {
         private const val ENDPOINT_URL =
             "https://roadconditions.yellowglacier-a8220dfb.norwayeast.azurecontainerapps.io/bumps"
