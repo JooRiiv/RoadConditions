@@ -1,5 +1,6 @@
 [versions]
 agp = "8.13.0"
+androidMapsUtils = "3.19.0"
 kotlin = "2.2.20"
 coreKtx = "1.17.0"
 junit = "4.13.2"
@@ -8,8 +9,12 @@ espressoCore = "3.7.0"
 appcompat = "1.7.1"
 kotlinTestJunit = "1.9.0"
 kotlinxDatetime = "0.7.1"
+kotlinxDatetimeVersion = "0.7.1"
 kotlinxSerializationJson = "1.9.0"
+kotlinxSerializationJsonVersion = "1.9.0"
+ktorSerializationKotlinxJson = "3.3.0"
 ktorServerCoreJvm = "3.3.0"
+localbroadcastmanager = "1.1.0"
 logbackClassic = "1.5.18"
 material = "1.13.0"
 activity = "1.11.0"
@@ -19,15 +24,23 @@ playServicesMaps = "19.2.0"
 playServicesLocation = "21.3.0"
 
 [libraries]
+android-maps-utils = { module = "com.google.maps.android:android-maps-utils", version.ref = "androidMapsUtils" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-localbroadcastmanager = { module = "androidx.localbroadcastmanager:localbroadcastmanager", version.ref = "localbroadcastmanager" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
 kotlin-test-junit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlinTestJunit" }
 kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinxDatetime" }
+kotlinx-datetime-v040 = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinxDatetimeVersion" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
+kotlinx-serialization-json-v160 = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerializationJsonVersion" }
+ktor-client-cio = { module = "io.ktor:ktor-client-cio", version.ref = "ktorServerCoreJvm" }
+ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktorServerCoreJvm" }
+ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktorServerCoreJvm" }
 ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktorServerCoreJvm" }
+ktor-serialization-kotlinx-json-v231 = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktorSerializationKotlinxJson" }
 ktor-server-call-logging-jvm = { module = "io.ktor:ktor-server-call-logging-jvm", version.ref = "ktorServerCoreJvm" }
 ktor-server-content-negotiation = { module = "io.ktor:ktor-server-content-negotiation", version.ref = "ktorServerCoreJvm" }
 ktor-server-core-jvm = { module = "io.ktor:ktor-server-core-jvm", version.ref = "ktorServerCoreJvm" }
