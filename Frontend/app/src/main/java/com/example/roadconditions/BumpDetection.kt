@@ -139,10 +139,7 @@ class BumpDetection : Service(), SensorEventListener {
             fusedLocationClient.lastLocation.addOnSuccessListener { location ->
                 if (location != null) {
                     val timestamp =
-                        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault()).apply {
-                            timeZone = TimeZone.getTimeZone("UTC")
-                        }.format(Date())
-
+                        SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
                     val signalType =
                         if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
                             "Precise"
@@ -178,7 +175,7 @@ class BumpDetection : Service(), SensorEventListener {
     }
 
         fun bumpNotification() {
-            val formatter = SimpleDateFormat("HH:mm", Locale.getDefault())
+            val formatter = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
             val currentTime = formatter.format(Date())
             val builder = NotificationCompat.Builder(this, "bump_service_channel")
                 .setSmallIcon(R.drawable.bumpnotificationicon)

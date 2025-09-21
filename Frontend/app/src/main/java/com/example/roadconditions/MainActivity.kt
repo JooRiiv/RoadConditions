@@ -298,18 +298,14 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private fun showBumpsOnMap() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
-                inputFormat.timeZone = java.util.TimeZone.getTimeZone("UTC")
-
-                val outputFormat = SimpleDateFormat("dd.MM.yyyy HH:mm:ss", Locale.getDefault())
+                val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                val outputFormat = SimpleDateFormat("d.M.yyyy HH:mm:ss", Locale.getDefault())
                 val bumps = BumpClient.getAllBumps()
-
                 withContext(Dispatchers.Main) {
                     clusterManager.clearItems()
                     for (bump in bumps) {
                         val parsedDate = inputFormat.parse(bump.timestamp)
                         val formattedDate = parsedDate?.let { outputFormat.format(it) } ?: bump.timestamp
-
                         val item = BumpClusterItem(
                             bump.latitude,
                             bump.longitude,
