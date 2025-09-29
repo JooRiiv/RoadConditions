@@ -93,6 +93,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         map.uiSettings.isZoomControlsEnabled = true
         map.uiSettings.isMapToolbarEnabled = false
 
+        startAppFunctions()
         showBumpsOnMap()
 
     }
@@ -114,8 +115,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 ) != PackageManager.PERMISSION_GRANTED
             ) {
                 requestBackgroundLocationPermission()
-            } else {
-                startAppFunctions()
             }
         } else {
             Toast.makeText(
