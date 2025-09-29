@@ -4,7 +4,7 @@
     <string name="accuracyHeader">Accuracy</string>
     <string name="accuracyType">GPS/Wifi + Cell</string>
     <string name="strong">Precise (GPS)</string>
-    <string name="weak">Approximate (Wi-fi/Cellular)</string>
+    <string name="weak">Approx. (Wi-fi/Cellular)</string>
     <string name="none">Unavailable</string>
     <string name="TrackingInfo">On/Off</string>
     <string name="On">On</string>

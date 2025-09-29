@@ -3,11 +3,7 @@ package com.example.roadconditions
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.AlertDialog
-import android.app.PendingIntent
-import android.content.BroadcastReceiver
-import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
@@ -16,6 +12,7 @@ import android.provider.Settings
 import android.util.Log
 import android.widget.TextView
 import android.widget.Toast
+import android.widget.ToggleButton
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
@@ -24,8 +21,6 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.edit
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.localbroadcastmanager.content.LocalBroadcastManager
-import com.google.android.gms.location.ActivityRecognition
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
@@ -49,7 +44,6 @@ import java.util.Locale
 class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var googleMap: GoogleMap
     private lateinit var signal: TextView
-    private lateinit var trackingInfo: TextView
     private lateinit var clusterManager: ClusterManager<BumpClusterItem>
     private lateinit var infoWindowAdapter: CustomInfoWindowAdapter
 
@@ -63,14 +57,25 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             insets
 
         }
-
+        val toggleButton: ToggleButton = findViewById(R.id.toggleButton)
         val mapFragment = supportFragmentManager
             .findFragmentById(R.id.map) as SupportMapFragment
         mapFragment.getMapAsync(this)
         signal = findViewById(R.id.signalStrength)
-        trackingInfo = findViewById(R.id.trackingInfo)
-        trackingInfo.setText(R.string.Off)
         requestPermissions()
+
+        toggleButton.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked) {
+                val serviceIntent = Intent(this, BumpDetection::class.java)
+                ContextCompat.startForegroundService(this, serviceIntent)
+                Toast.makeText(this, "Bump detection started", Toast.LENGTH_SHORT).show()
+            } else {
+                // Stop the service
+                val serviceIntent = Intent(this, BumpDetection::class.java)
+                stopService(serviceIntent)
+                Toast.makeText(this, "Bump detection stopped", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     @SuppressLint("PotentialBehaviorOverride")
@@ -100,10 +105,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         }
         val fineLocation = permissions[Manifest.permission.ACCESS_FINE_LOCATION] ?: false
         val coarseLocation = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] ?: false
-        val activityRecognition = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
-            permissions[Manifest.permission.ACTIVITY_RECOGNITION] ?: false else true
 
-        if ((fineLocation || coarseLocation) && activityRecognition) {
+        if ((fineLocation || coarseLocation)) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
                 ContextCompat.checkSelfPermission(
                     this,
@@ -117,7 +120,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         } else {
             Toast.makeText(
                 this,
-                "Foreground location or activity recognition permission denied",
+                "Foreground location permission denied",
                 Toast.LENGTH_SHORT
             ).show()
         }
@@ -139,9 +142,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             Manifest.permission.ACCESS_FINE_LOCATION,
             Manifest.permission.ACCESS_COARSE_LOCATION
         )
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            permissionsToRequest.add(Manifest.permission.ACTIVITY_RECOGNITION)
-        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS)
         }
@@ -169,59 +169,10 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     private fun startAppFunctions() {
-        setupActivityRecognition()
         enableMyLocation()
         promptIgnoreBatteryOptimizations()
     }
 
-
-    private fun setupActivityRecognition() {
-        if (ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACTIVITY_RECOGNITION
-            ) == PackageManager.PERMISSION_GRANTED
-        ) {
-            val client = ActivityRecognition.getClient(this)
-            client.requestActivityUpdates(
-                3000L,
-                getPendingIntent()
-            )
-
-        } else {
-            Toast.makeText(this, "Activity recognition permission not granted", Toast.LENGTH_SHORT)
-                .show()
-        }
-    }
-
-    private fun getPendingIntent(): PendingIntent {
-        val intent = Intent(this, ActivityRecognitionReceiver::class.java)
-        return PendingIntent.getBroadcast(
-            this,
-            0,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
-        )
-    }
-
-    private val vehicleStateReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            val inVehicle = intent?.getBooleanExtra("inVehicle", false) ?: false
-            trackingInfo.setText(if (inVehicle) R.string.On else R.string.Off)
-        }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        LocalBroadcastManager.getInstance(this).registerReceiver(
-            vehicleStateReceiver,
-            IntentFilter("vehicle_state_changed")
-        )
-    }
-
-    override fun onPause() {
-        super.onPause()
-        LocalBroadcastManager.getInstance(this).unregisterReceiver(vehicleStateReceiver)
-    }
 
     private fun enableMyLocation() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==

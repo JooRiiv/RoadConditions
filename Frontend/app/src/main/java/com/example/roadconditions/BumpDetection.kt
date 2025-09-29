@@ -11,6 +11,7 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.location.Location
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
@@ -20,9 +21,11 @@ import android.widget.Toast
 import androidx.annotation.RequiresPermission
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import io.ktor.client.HttpClient
@@ -41,7 +44,6 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import java.util.TimeZone
 import kotlin.math.abs
 
 
@@ -51,6 +53,7 @@ class BumpDetection : Service(), SensorEventListener {
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var locationCallback: LocationCallback
 
+    private var isDriving = false
     private var accelerometer: Sensor? = null
     private var lastBumpTime = 0L
     private val bumpCooldown = 5000L
@@ -82,19 +85,60 @@ class BumpDetection : Service(), SensorEventListener {
     }
 
     private fun startLocationUpdates() {
-        if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
-            checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
-        ) {
-            val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000L)
-                .setMinUpdateIntervalMillis(500L)
-                .build()
+        val useCoarse = ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) != PackageManager.PERMISSION_GRANTED
+            val priority = if (useCoarse) {
+                Priority.PRIORITY_BALANCED_POWER_ACCURACY
+            } else {
+                Priority.PRIORITY_HIGH_ACCURACY
+            }
 
-            fusedLocationClient.requestLocationUpdates(
-                locationRequest,
-                locationCallback,
-                Looper.getMainLooper()
-            )
+            val locationRequest = LocationRequest.Builder(
+                priority,
+                5000L
+            ).build()
+
+        locationCallback = object : LocationCallback() {
+            override fun onLocationResult(locationResult: LocationResult) {
+                for (location in locationResult.locations) {
+                    checkDriving(location, useCoarse)
+                }
+            }
         }
+
+        fusedLocationClient.requestLocationUpdates(
+            locationRequest,
+            locationCallback,
+            Looper.getMainLooper()
+        )
+    }
+
+    var previousLocation: Location? = null
+    var previousTime: Long = 0
+
+    fun checkDriving(location: Location, useCoarse: Boolean) {
+        val currentTime = System.currentTimeMillis()
+        var speedKmh = 0.0
+
+        if (useCoarse) {
+            previousLocation?.let { prev ->
+                val distanceMeters = prev.distanceTo(location)
+                val timeSeconds = (currentTime - previousTime) / 1000.0
+                val speedMps = if (timeSeconds > 0) distanceMeters / timeSeconds else 0.0
+                speedKmh = speedMps * 3.6
+            }
+        } else {
+            speedKmh = location.speed * 3.6
+        }
+
+        isDriving = speedKmh > 15
+        if (isDriving) {
+            Log.d("DrivingCheck", "Likely driving (speed: $speedKmh km/h)")
+        }
+        previousLocation = location
+        previousTime = currentTime
     }
 
     private fun stopLocationUpdates() {
@@ -131,7 +175,8 @@ class BumpDetection : Service(), SensorEventListener {
         val z = event?.values?.get(2) ?: return
         val verticalAcceleration = abs(z - SensorManager.GRAVITY_EARTH)
 
-        if (verticalAcceleration > 15.0f && System.currentTimeMillis() - lastBumpTime > bumpCooldown) {
+        if (isDriving && verticalAcceleration > 15.0f &&
+            System.currentTimeMillis() - lastBumpTime > bumpCooldown) {
             lastBumpTime = System.currentTimeMillis()
             showBumpToast()
             bumpNotification()
@@ -144,7 +189,7 @@ class BumpDetection : Service(), SensorEventListener {
                         if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
                             "Precise"
                         } else {
-                            "Coarse"
+                            "Approximate"
                         }
 
                     val bump = Bump(
