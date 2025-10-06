@@ -2,7 +2,7 @@
     <string name="app_name">Road Conditions</string>
     <string name="tracking">Tracking</string>
     <string name="accuracyHeader">Accuracy</string>
-    <string name="accuracyType">GPS/Wifi + Cell</string>
+    <string name="accuracyType">Unavailable</string>
     <string name="strong">Precise (GPS)</string>
     <string name="weak">Approx. (Wi-fi/Cellular)</string>
     <string name="none">Unavailable</string>
