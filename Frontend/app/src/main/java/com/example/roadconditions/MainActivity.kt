@@ -90,7 +90,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         map.uiSettings.isZoomControlsEnabled = true
         map.uiSettings.isMapToolbarEnabled = false
 
-        enableMyLocation()
         showBumpsOnMap()
 
     }
@@ -181,6 +180,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                     ) ==
                     PackageManager.PERMISSION_GRANTED
                     ) {
+            enableMyLocation()
             trackingInfo.visibility = View.GONE
             toggleButton.visibility = View.VISIBLE
             toggleButton.setOnCheckedChangeListener { _, isChecked ->
@@ -192,11 +192,19 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
 
     private fun setupActivityRecognition() {
-        val serviceIntent = Intent(this, ActivityRecognitionService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(serviceIntent)
-        } else {
-            startService(serviceIntent)
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==
+            PackageManager.PERMISSION_GRANTED ||
+            ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_COARSE_LOCATION) ==
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            val serviceIntent = Intent(this, ActivityRecognitionService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(serviceIntent)
+            } else {
+                startService(serviceIntent)
+            }
         }
     }
 
