@@ -3,13 +3,17 @@ package com.example.roadconditions
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.AlertDialog
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
+import android.view.View
 import android.widget.TextView
 import android.widget.Toast
 import android.widget.ToggleButton
@@ -21,6 +25,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.edit
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
@@ -44,8 +49,11 @@ import java.util.Locale
 class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var googleMap: GoogleMap
     private lateinit var signal: TextView
+    private lateinit var trackingInfo: TextView
+    private lateinit var toggleButton: ToggleButton
     private lateinit var clusterManager: ClusterManager<BumpClusterItem>
     private lateinit var infoWindowAdapter: CustomInfoWindowAdapter
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -57,25 +65,14 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             insets
 
         }
-        val toggleButton: ToggleButton = findViewById(R.id.toggleButton)
         val mapFragment = supportFragmentManager
             .findFragmentById(R.id.map) as SupportMapFragment
         mapFragment.getMapAsync(this)
         signal = findViewById(R.id.signalStrength)
+        trackingInfo = findViewById(R.id.trackingInfo)
+        toggleButton = findViewById(R.id.toggleButton)
+        toggleButton.visibility = View.GONE
         requestPermissions()
-
-        toggleButton.setOnCheckedChangeListener { _, isChecked ->
-            if (isChecked) {
-                val serviceIntent = Intent(this, BumpDetection::class.java)
-                ContextCompat.startForegroundService(this, serviceIntent)
-                Toast.makeText(this, "Bump detection started", Toast.LENGTH_SHORT).show()
-            } else {
-                // Stop the service
-                val serviceIntent = Intent(this, BumpDetection::class.java)
-                stopService(serviceIntent)
-                Toast.makeText(this, "Bump detection stopped", Toast.LENGTH_SHORT).show()
-            }
-        }
     }
 
     @SuppressLint("PotentialBehaviorOverride")
@@ -93,7 +90,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         map.uiSettings.isZoomControlsEnabled = true
         map.uiSettings.isMapToolbarEnabled = false
 
-        startAppFunctions()
+        enableMyLocation()
         showBumpsOnMap()
 
     }
@@ -106,8 +103,10 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         }
         val fineLocation = permissions[Manifest.permission.ACCESS_FINE_LOCATION] ?: false
         val coarseLocation = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] ?: false
+        val activityRecognition = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+            permissions[Manifest.permission.ACTIVITY_RECOGNITION] ?: false else true
 
-        if ((fineLocation || coarseLocation)) {
+        if ((fineLocation || coarseLocation) && activityRecognition) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
                 ContextCompat.checkSelfPermission(
                     this,
@@ -115,11 +114,13 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 ) != PackageManager.PERMISSION_GRANTED
             ) {
                 requestBackgroundLocationPermission()
+            } else {
+                startAppFunctions()
             }
         } else {
             Toast.makeText(
                 this,
-                "Foreground location permission denied",
+                "Foreground location or activity recognition permission denied",
                 Toast.LENGTH_SHORT
             ).show()
         }
@@ -141,6 +142,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             Manifest.permission.ACCESS_FINE_LOCATION,
             Manifest.permission.ACCESS_COARSE_LOCATION
         )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            permissionsToRequest.add(Manifest.permission.ACTIVITY_RECOGNITION)
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS)
         }
@@ -168,10 +172,74 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     private fun startAppFunctions() {
-        enableMyLocation()
         promptIgnoreBatteryOptimizations()
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==
+                    PackageManager.PERMISSION_GRANTED ||
+                    ContextCompat.checkSelfPermission(
+                        this,
+                        Manifest.permission.ACCESS_COARSE_LOCATION
+                    ) ==
+                    PackageManager.PERMISSION_GRANTED
+                    ) {
+            trackingInfo.visibility = View.GONE
+            toggleButton.visibility = View.VISIBLE
+            toggleButton.setOnCheckedChangeListener { _, isChecked ->
+                controlBumpDetectionService(isChecked)
+            }
+        }
     }
 
+
+
+    private fun setupActivityRecognition() {
+        val serviceIntent = Intent(this, ActivityRecognitionService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(serviceIntent)
+        } else {
+            startService(serviceIntent)
+        }
+    }
+
+    private val drivingStatusReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val isDriving = intent?.getBooleanExtra("isDriving", false) ?: return
+            toggleButton.setOnCheckedChangeListener(null)
+            toggleButton.isChecked = isDriving
+
+            toggleButton.setOnCheckedChangeListener { _, isChecked ->
+                controlBumpDetectionService(isChecked)
+            }
+            controlBumpDetectionService(isDriving)
+        }
+    }
+
+    private fun controlBumpDetectionService(isChecked: Boolean) {
+        val serviceIntent = Intent(this, BumpDetection::class.java)
+        if (isChecked) {
+            ContextCompat.startForegroundService(this, serviceIntent)
+            Toast.makeText(this, "Bump detection started", Toast.LENGTH_SHORT).show()
+        } else {
+            stopService(serviceIntent)
+            Toast.makeText(this, "Bump detection stopped", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACTIVITY_RECOGNITION) ==
+            PackageManager.PERMISSION_GRANTED) {
+            setupActivityRecognition()
+        }
+        LocalBroadcastManager.getInstance(this).registerReceiver(
+            drivingStatusReceiver,
+            IntentFilter("com.example.roadconditions.DRIVING_STATUS")
+        )
+    }
+
+    override fun onDestroy() {
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(drivingStatusReceiver)
+        super.onDestroy()
+    }
 
     private fun enableMyLocation() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==

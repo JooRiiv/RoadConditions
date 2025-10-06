@@ -6,7 +6,7 @@
     <string name="strong">Precise (GPS)</string>
     <string name="weak">Approx. (Wi-fi/Cellular)</string>
     <string name="none">Unavailable</string>
-    <string name="TrackingInfo">On/Off</string>
+    <string name="TrackingInfo">Unavailable</string>
     <string name="On">On</string>
     <string name="Off">Off</string>
 </resources>

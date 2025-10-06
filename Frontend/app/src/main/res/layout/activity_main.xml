@@ -30,6 +30,18 @@
         app:layout_constraintTop_toTopOf="parent" />
 
     <TextView
+        android:id="@+id/trackingInfo"
+        android:layout_width="120dp"
+        android:layout_height="23dp"
+        android:layout_marginEnd="24dp"
+        android:layout_marginBottom="8dp"
+        android:text="@string/TrackingInfo"
+        android:textAlignment="center"
+        app:layout_constraintBottom_toTopOf="@+id/map"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/trackingHeader" />
+
+    <TextView
         android:id="@+id/signalHeader"
         android:layout_width="170dp"
         android:layout_height="25dp"
