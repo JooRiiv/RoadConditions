@@ -92,6 +92,16 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         showBumpsOnMap()
 
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==
+            PackageManager.PERMISSION_GRANTED ||
+            ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ) ==
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            enableMyLocation()
+        }
     }
 
     private var foregroundPermissionRequest = registerForActivityResult(
@@ -180,7 +190,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                     ) ==
                     PackageManager.PERMISSION_GRANTED
                     ) {
-            enableMyLocation()
             trackingInfo.visibility = View.GONE
             toggleButton.visibility = View.VISIBLE
             toggleButton.setOnCheckedChangeListener { _, isChecked ->
