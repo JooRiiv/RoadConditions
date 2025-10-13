@@ -1,4 +1,4 @@
-# Road Conditions
+# 🛣️ Road Conditions
 
 ![Screenshot of the app. ](https://i.imgur.com/D0Ecl3s.jpeg)
 
@@ -31,21 +31,20 @@ Road Conditions is a mobile application that leverages real-time sensor data fro
 
 5. Connect an Android Smartphone to Android Studio or build an APK.
 
-
 ## Usage
 
 1. Search for bump locations on the map.
 2. Activate bump detection either manually or automatically using Google's Activity Recognition Transition API.
 3. Sends bump data to database after the phone's accelerometer detects enough sudden movement during bump detection while driving.
 
-
 ## Technologies used
 
 - **Frontend**:
   - Kotlin
-  - Google Maps
+  - Google Maps SDK
   - Android Studio
 - **Backend**:
   - Ktor
+  - Microsoft Azure
 - **Database**:
   - MongoDB
