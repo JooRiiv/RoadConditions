@@ -25,7 +25,7 @@ Road Conditions is a mobile application that leverages real-time sensor data fro
 
 2. Add your Google Maps Api-Key into the local.properties file. 'MAPS_API_KEY="YOUR_API_KEY_HERE'
 
-3. Add your endpoint to the file "BumpDetection.kt" found in "Frontend/app/src/main/java/com/example/roadconditions/"
+3. Add your endpoint to the files: "MainActivity.kt" and "BumpDetection.kt" found in "Frontend/app/src/main/java/com/example/roadconditions/"
 
 4. Setup a Docker container app on Microsoft Azure for the Dockerfile.
 
