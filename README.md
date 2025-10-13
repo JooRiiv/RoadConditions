@@ -48,3 +48,7 @@ Road Conditions is a mobile application that leverages real-time sensor data fro
   - Microsoft Azure
 - **Database**:
   - MongoDB
+
+## License
+
+This project is licensed under the [MIT License](/LICENSE)
