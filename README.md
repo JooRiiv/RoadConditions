@@ -29,7 +29,7 @@ Road Conditions is a mobile application that leverages real-time sensor data fro
 
 4. Setup a Docker container app on Microsoft Azure for the Dockerfile.
 
-5. Connect an Android Smartphone to Android Studio or build an APK.
+5. Connect an Android Smartphone to Android Studio and optionally build an APK.
 
 ## Usage
 
